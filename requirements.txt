@@ -1,0 +1,7 @@
+cryptography>=42.0
+feedparser
+openai
+python-dotenv
+qdrant-client
+yt-dlp
+webvtt-py

@@ -1,0 +1,11 @@
+2026-11-24 11:20:17,855 [INFO] HTTP Request: GET http://localhost:6333/collections "HTTP/1.1 200 OK"
+2026-11-24 11:20:17,858 [INFO] Membuat Qdrant collection baru: 'kajian_khalid_basalamah_bge_m3'...
+2026-11-24 11:20:17,900 [INFO] HTTP Request: GET http://localhost:6333 "HTTP/1.1 200 OK"
+2026-11-24 11:20:17,943 [INFO] HTTP Request: PUT http://localhost:6333/collections/kajian_khalid_basalamah_bge_m3 "HTTP/1.1 200 OK"
+2026-11-24 11:20:17,945 [INFO] Collection Qdrant berhasil dibuat.
+2026-11-24 11:20:29,460 [INFO] Mengirim audio ke Whisper API (Ukuran: 0.32 MB)...
+2026-11-24 11:20:33,910 [INFO] HTTP Request: POST https://kenari.id/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-11-24 11:20:34,345 [INFO] HTTP Request: POST https://kenari.id/v1/embeddings "HTTP/1.1 200 OK"
+2026-11-24 11:20:34,370 [INFO] HTTP Request: PUT http://localhost:6333/collections/kajian_khalid_basalamah_bge_m3/points?wait=true "HTTP/1.1 200 OK"
+2026-11-24 11:20:51,339 [INFO] HTTP Request: POST http://localhost:6333/collections/kajian_khalid_basalamah_bge_m3/points/count "HTTP/1.1 200 OK"
+2026-11-24 11:20:51,348 [INFO] HTTP Request: POST http://localhost:6333/collections/kajian_khalid_basalamah_bge_m3/points/scroll "HTTP/1.1 200 OK"
