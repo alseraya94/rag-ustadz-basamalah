@@ -4,6 +4,9 @@ import uuid
 import sqlite3
 import logging
 import subprocess
+import tempfile
+from dataclasses import dataclass
+from pathlib import Path
 import feedparser
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -29,6 +32,7 @@ RSS_URL = f"https://www.youtube.com/feeds/videos.xml?channel_id={CHANNEL_ID}"
 MIN_DURATION_SEC = 900  # Minimal 15 menit (skip Shorts & potongan klip)
 EMBEDDING_MODEL = "bge-m3"
 EMBEDDING_DIM = int(os.getenv("KENARI_EMBEDDING_DIM", "1024"))
+TRANSCRIPTION_PART_SEC = 180
 
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "kajian_khalid_basalamah")
@@ -131,23 +135,62 @@ def download_compressed_audio(video_id: str, url: str) -> str:
 
 
 # 4. Transkripsi & Semantic Chunking
-def transcribe_audio(audio_path: str):
-    """Mentranskrip audio ke teks bahasa Indonesia beserta timestamp tiap segmen."""
-    file_size_mb = os.path.getsize(audio_path) / (1024 * 1024)
-    logging.info(f"Mengirim audio ke Whisper API (Ukuran: {file_size_mb:.2f} MB)...")
+@dataclass
+class TranscriptSegment:
+    text: str
+    start: float
+    end: float
 
-    with open(audio_path, "rb") as audio_file:
-        response = kenari_client.audio.transcriptions.create(
-            model=os.getenv("KENARI_TRANSCRIPTION_MODEL", "whisper-large-v3-turbo"),
-            file=audio_file,
-            language="id",
-            prompt="Kajian Islam Ustadz Khalid Basalamah, dalil Al-Quran, hadits shahih, kitab fiqih, sirah nabawiyah.",
-            response_format="verbose_json",
-            timestamp_granularities=["segment"]
-        )
-    segments = getattr(response, "segments", None)
-    if not segments:
-        raise RuntimeError("Kenari transcription did not return timestamped segments")
+
+def transcribe_audio(audio_path: str):
+    """Transkrip audio per tiga menit dengan timestamp relatif ke awal video."""
+    duration_output = subprocess.check_output([
+        "ffprobe", "-v", "error", "-show_entries", "format=duration",
+        "-of", "default=noprint_wrappers=1:nokey=1", audio_path
+    ], text=True)
+    duration = float(duration_output.strip())
+    if duration <= 0:
+        raise ValueError("Audio duration must be positive")
+
+    segments = []
+    with tempfile.TemporaryDirectory(prefix="kajian-transcription-") as temp_dir:
+        offset = 0
+        while offset < duration:
+            remaining = duration - offset
+            # MP3 duration includes encoder padding; avoid a near-empty final request.
+            part_duration = remaining if remaining <= TRANSCRIPTION_PART_SEC + 1 else TRANSCRIPTION_PART_SEC
+            part_path = audio_path
+            if duration > TRANSCRIPTION_PART_SEC + 1:
+                part_path = str(Path(temp_dir) / f"part-{offset}.mp3")
+                subprocess.run([
+                    "ffmpeg", "-nostdin", "-v", "error", "-ss", str(offset),
+                    "-i", audio_path, "-t", str(part_duration),
+                    "-ac", "1", "-ar", "16000", "-b:a", "32k", part_path
+                ], check=True)
+
+            logging.info(
+                f"Mengirim audio ke Whisper API (mulai {offset}s, "
+                f"ukuran {os.path.getsize(part_path) / (1024 * 1024):.2f} MB)..."
+            )
+            with open(part_path, "rb") as audio_file:
+                response = kenari_client.audio.transcriptions.create(
+                    model=os.getenv("KENARI_TRANSCRIPTION_MODEL", "whisper-large-v3-turbo"),
+                    file=audio_file,
+                    language="id",
+                    prompt="Kajian Islam Ustadz Khalid Basalamah, dalil Al-Quran, hadits shahih, kitab fiqih, sirah nabawiyah.",
+                    response_format="verbose_json",
+                    timestamp_granularities=["segment"]
+                )
+            part_segments = getattr(response, "segments", None)
+            if not part_segments:
+                raise RuntimeError(
+                    f"Kenari transcription did not return timestamped segments for audio at {offset}s"
+                )
+            segments.extend(
+                TranscriptSegment(text=seg.text, start=seg.start + offset, end=seg.end + offset)
+                for seg in part_segments
+            )
+            offset += part_duration
     return segments
 
 
