@@ -198,16 +198,25 @@ cukup, model diarahkan untuk menyatakan bahwa informasi tidak ditemukan.
 
 ## Pengujian
 
-Jalankan test otomatis:
+Jalankan test unit otomatis:
 
 ```bash
-pytest
+pytest test_crypto_utils.py test_daily_ingest.py
 ```
 
 Test audio pada `test_daily_ingest.py` memerlukan `ffmpeg`. File
-`test_compare.py` adalah script eksperimen untuk membandingkan subtitle otomatis
-YouTube dengan transkripsi Kenari pada satu video yang dikonfigurasi di dalam
-file tersebut; script itu membutuhkan akses internet dan API.
+`test_compare.py` bukan bagian dari test unit; file tersebut adalah script
+eksperimen untuk membandingkan subtitle otomatis YouTube dengan transkripsi
+Kenari pada satu video yang dikonfigurasi di dalam file tersebut. Jalankan
+secara manual dengan:
+
+```bash
+python test_compare.py
+```
+
+Script eksperimen tersebut membutuhkan akses internet dan API. Jangan
+menjalankannya melalui `pytest`, karena fungsi di dalamnya menerima argumen
+video secara langsung.
 
 ## Struktur file
 
