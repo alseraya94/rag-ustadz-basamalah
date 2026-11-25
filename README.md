@@ -17,8 +17,9 @@ Project ini menggunakan:
 
 - Memproses video baru secara incremental berdasarkan `video_id`.
 - Melewati video yang tidak tersedia atau berdurasi kurang dari 15 menit.
-- Memecah audio panjang menjadi bagian 180 detik sebelum dikirim ke API
-  transkripsi.
+- Memecah audio panjang menjadi bagian maksimal 180 detik sebelum dikirim ke
+  API transkripsi, serta menghindari request terakhir yang nyaris kosong akibat
+  padding encoder MP3.
 - Membuat chunk transkrip maksimal sekitar 1.500 karakter dengan overlap dua
   segmen.
 - Mendeteksi bagian materi inti dan sesi tanya jawab.
@@ -231,6 +232,7 @@ file tersebut; script itu membutuhkan akses internet dan API.
   dicoba lagi pada eksekusi berikutnya.
 - Video berdurasi kurang dari 15 menit dicatat dengan `chunks_count=0` agar
   tidak diperiksa ulang.
-- File audio sementara dibuat di `/tmp` dan dihapus setelah pemrosesan selesai.
+- File audio sementara dibuat di `/tmp` dan dihapus setelah pemrosesan selesai;
+  potongan audio transkripsi juga dibersihkan otomatis setelah dipakai.
 - Untuk mengubah channel, `CHANNEL_ID` dan komentar terkait di
   `daily_ingest.py` perlu disesuaikan.
